@@ -40,7 +40,7 @@ Parameters:
     Type: String
 
   GitHubToken:
-    Type: SecureString
+    Type: String
     NoEcho: true
     Description: GitHub Personal Access Token for the Phonebook Project
 
