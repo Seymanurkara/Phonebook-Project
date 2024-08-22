@@ -185,7 +185,7 @@ Resources:
       HealthCheckPath: /
       HealthCheckPort: 80
       HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 6
+      HealthCheckTimeoutSeconds: 5
       HealthyThresholdCount: 5
       IpAddressType: ipv4 
       Name: Phonebook-project-target-group
@@ -253,7 +253,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref myVPC
-      CidrBlock: "10.0.1.0/24"
+      CidrBlock: "10.4.0.0/16"
       AvailabilityZone: "us-east-1a"
       MapPublicIpOnLaunch: true
       Tags:
@@ -264,7 +264,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref myVPC
-      CidrBlock: "10.0.2.0/24"
+      CidrBlock: "10.5.0.0/16"
       AvailabilityZone: "us-east-1b"
       MapPublicIpOnLaunch: true
       Tags:
@@ -275,7 +275,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref myVPC
-      CidrBlock: "10.0.3.0/24"
+      CidrBlock: "10.6.0.0/16"
       AvailabilityZone: "us-east-1c"
       MapPublicIpOnLaunch: true
       Tags:
@@ -286,7 +286,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref myVPC
-      CidrBlock: "10.0.4.0/24"
+      CidrBlock: "10.9.0.0/16"
       AvailabilityZone: "us-east-1d"
       MapPublicIpOnLaunch: true
       Tags:
@@ -297,7 +297,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref myVPC
-      CidrBlock: "10.0.5.0/24"
+      CidrBlock: "10.8.0.0/16"
       AvailabilityZone: "us-east-1e"
       MapPublicIpOnLaunch: true
       Tags:
@@ -308,7 +308,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref myVPC
-      CidrBlock: "10.0.6.0/24"
+      CidrBlock: "10.7.0.0/16"
       AvailabilityZone: "us-east-1f"
       MapPublicIpOnLaunch: true
       Tags:
