@@ -85,7 +85,7 @@ Resources:
     Properties:
       Name: "/phonebook/github/token"
       Description: "GitHub Personal Access Token for the Phonebook Project"
-      Type: SecureString
+      Type: String
       Value: !Ref GitHubToken
 
   autoScalingGroup:
