@@ -10,35 +10,336 @@ Description: |
   environment on EC2, and to deploy Phonebook Application on Flask Server after downloading the app code 
   from Github repository.
 Parameters:
- 
+  myInstanceType:
+    Description: Choose your instance type
+    Type: String
+    Default: t2.micro
+
+  myKEYPAIR:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyFormat: "String"
+      KeyName: firstkeypair # Required
+
+  latestAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64'
+
+  DBInstanceID:
+    Default: clarusway_phonebook
+    Description: My database instance
+    Type: String
+
+  DBName:
+    Default: clarusway_phonebook
+    Description: "Database name for the Phonebook Project"
+    Type: String
+
+  GitHubToken:
+    Type: String
+    NoEcho: true
+    Description: "GitHub Personal Access Token for the Phonebook Project"
+    
+
+  DBInstanceClass:
+    Default: db.t2.micro
+    AllowedPattern: 
+      -db.t2.micro
+      -db.t3.micro
+    Description: DB instance class
+    Type: String
+    ConstraintDescription: Must select a valid DB instance type.
+
+  DBAllocatedStorage:
+    StorageType: ssd
+    Default: 20
+    Description: The size of the database (GiB)
+    Type: Number
+    MinValue: 20
+    MaxValue: 22
+
+
+  myRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref myVPC
   
 Resources:
 
+  GitHubTokenParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/phonebook/github/token"
+      Description: "GitHub Personal Access Token for the Phonebook Project"
+      Type: SecureString
+      Value: !Ref GitHubToken
+  
+
   autoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: seymanur-phone-book-project
+      AvailabilityZones: 
+        - us-east-1a
+        - us-east-1b
+        - us-east-1c
+        - us-east-1d
+        - us-east-1e
+        - us-east-1f
+      DesiredCapacity: True
+      DesiredCapacityType: "2"
+      HealthCheckGracePeriod: 90
+      HealthCheckType: ELB
+      InstanceId: !Ref DBInstanceID
+      LaunchConfigurationName: !Ref myLT
+      LaunchTemplate: 
+        !Ref myLT
+      LoadBalancerNames: 
+        - !Ref myALB
+      MaxSize: "3"
+      MetricsCollection:
+          - Granularity: "1Minute"  # Toplanan metriklerin sıklığı.
+            Metrics:
+              - GroupMinSize
+              - GroupMaxSize
+              - GroupDesiredCapacity
+              - GroupInServiceInstances
+      MinSize: "1"
+      NewInstancesProtectedFromScaleIn: True
+      NotificationConfigurations:
+          - NotificationTypes:
+              - autoscaling:EC2_INSTANCE_LAUNCH
+              - autoscaling:EC2_INSTANCE_TERMINATE
+              - autoscaling:EC2_INSTANCE_LAUNCH_ERROR
+              - autoscaling:EC2_INSTANCE_TERMINATE_ERROR
+      TargetGroupARNs: 
+        - !Ref myTargetGroup
+      VPCZoneIdentifier: 
+        - !Ref myVPC
 
-  applicationLoadBalancerListener:
+
+
+  MyListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref MyTargetGroup
+      LoadBalancerArn: !Ref myALB
+      Port: 80
+      Protocol: HTTP
     
 
-  applicationLoadBalancer:
+  myALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      IpAddressType: ipv4
+      Name: phonebook-project
+      Scheme: internet-facing 
+      SecurityGroups: 
+        - !Ref mySecGroup
+      SubnetMappings: 
+        - !Ref myVPC
+      Subnets: 
+        - !Ref SubnetUsEast1a
+        - !Ref SubnetUsEast1b
+        - !Ref SubnetUsEast1c
+        - !Ref SubnetUsEast1d
+        - !Ref SubnetUsEast1e
+        - !Ref SubnetUsEast1f
+  
+  myVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: "10.0.0.0/16"
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: "MyVPC"
+
+  SubnetUsEast1a:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: "10.0.1.0/24"
+      AvailabilityZone: "us-east-1a"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: "Subnet-us-east-1a"
+
+  SubnetUsEast1b:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: "10.0.2.0/24"
+      AvailabilityZone: "us-east-1b"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: "Subnet-us-east-1b"
+
+  SubnetUsEast1c:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: "10.0.3.0/24"
+      AvailabilityZone: "us-east-1c"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: "Subnet-us-east-1c"
+
+  SubnetUsEast1d:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: "10.0.4.0/24"
+      AvailabilityZone: "us-east-1d"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: "Subnet-us-east-1d"
+
+  SubnetUsEast1e:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: "10.0.5.0/24"
+      AvailabilityZone: "us-east-1e"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: "Subnet-us-east-1e"
+
+  SubnetUsEast1f:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: "10.0.6.0/24"
+      AvailabilityZone: "us-east-1f"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: "Subnet-us-east-1f"
+
+
+  RouteTableAssociationUsEast1a:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetUsEast1a
+      RouteTableId: !Ref myRouteTable  
+
+  
     
 
-  launchTemplate:
+  myLT:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        ImageId: !Ref latestAmiId
+        InstanceType: !Ref myInstanceType
+        KeyName: !Ref myKeyPair
+        SecurityGroups:
+          - !Ref mySecGroup
+            Tags:
+              - Key: Web Server of StackName
+                Value: seymanur_cfn_proje
+        UserData:  !Base64 |
+          #!/bin/bash
+          dnf update -y
+          dnf install python3.11 -y
+          dnf install python3.11-pip -y
+          pip3.11 install flask
+          dnf install git -y
+          cd /home/ec2-user
+          FOLDER="https://raw.githubusercontent.com/Seymanurkara/Phonebook-Project/main"
+          wget -P templates ${FOLDER}/templates/add-update.html
+          wget -P templates ${FOLDER}/templates/delete.html
+          wget -P templates ${FOLDER}/templates/index.html
+          python3.11 phonebook-app.py
+
+MyIamInstanceProfile:
+  Type: AWS::IAM::InstanceProfile
+  Properties:
+    InstanceProfileName: MyIAMProfile
+    Path: "/"
+    Roles:
+    - admin
    
 
 
-  targetGroup:
+  myTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckEnabled: True
+      HealthCheckIntervalSeconds: 5
+      HealthCheckPath: /
+      HealthCheckPort: 80
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 6
+      HealthyThresholdCount: 5
+      IpAddressType: ipv4 
+      Name: Phonebook-project-target-group
+      Port: Integer
+      Protocol: HTTP
+      ProtocolVersion: HTTP1
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref myVPC
     
 
-  dBInstance:
+  MyDB:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      DBInstanceIdentifier: !Ref DBInstanceID
+      DBName: !Ref DBName
+      DBInstanceClass: !Ref DBInstanceClass
+      AllocatedStorage: !Ref DBAllocatedStorage
+      Engine: MySQL
+      EngineVersion: 8.0.35
+      MasterUsername: admin
+      MasterUserPassword: clarusway_1234
+
+  mydbSSM:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/phonebook/dbname"
+      Description: "Database name for the Phonebook Project"
+      Type: String
+      Value: !Ref DBName
+      
     
 
-  wBSecurityGroup:
+  mySecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow  mysql and http 
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: seymanur-phonebook-project
+      VpcId: !Ref myVPC
+
    
-
-  webServerSecurityGroup:
     
 
   applicationLoadBalancerSecurityGroup:
     
 Outputs:
+  WebsiteURL:
+    Value: !Join
+      - ""
+      - - "http://"
+        - !GetAtt myLT.PublicDnsName
+        - ":80"
+    Description: PhoneBook Application URL
   
