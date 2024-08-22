@@ -30,19 +30,19 @@ Parameters:
     Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64'
 
   DBInstanceID:
-    Default: clarusway_phonebook
+    Default: clarusway-phonebook
     Description: My database instance
     Type: String
 
   DBName:
     Default: clarusway_phonebook
-    Description: "Database name for the Phonebook Project"
+    Description: Database name for the Phonebook Project
     Type: String
 
   GitHubToken:
-    Type: String
+    Type: SecureString
     NoEcho: true
-    Description: "GitHub Personal Access Token for the Phonebook Project"
+    Description: GitHub Personal Access Token for the Phonebook Project
 
   DBInstanceClass:
     Default: db.t2.micro
@@ -64,12 +64,16 @@ Resources:
   myIAMRole:
     Type: AWS::IAM::Role
     Properties:
-      AssumeRolePolicyDocument: Json
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
       Description: Admin role
       Path: /
       RoleName: admin
-      myVPC: 
-        !Ref myVPC
   
   myRouteTable:
     Type: AWS::EC2::RouteTable
@@ -105,7 +109,7 @@ Resources:
         - !Ref myALB
       MaxSize: "3"
       MetricsCollection:
-        - Granularity: "1Minute"
+        - Granularity: 1 Minute
       MinSize: "1"
       NewInstancesProtectedFromScaleIn: True
       TargetGroupARNs: 
@@ -130,8 +134,8 @@ Resources:
         TagSpecifications:
           - ResourceType: instance
             Tags:
-              - Key: "Web Server of StackName"
-                Value: "seymanur_cfn_proje"
+              - Key: Web Server of StackName
+                Value: "seymanur-cfn-proje"
         UserData: !Base64 |
           #!/bin/bash
           dnf update -y
