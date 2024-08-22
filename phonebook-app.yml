@@ -16,6 +16,10 @@ Parameters:
     Type: String
     Default: t2.micro
 
+  myVPC:
+    Description: Choose your vpc
+    Type: AWS::EC2::VPC::Id
+
   myKeyPair:
     Description: Name of an existing EC2 KeyPair to enable SSH access to the instances
     Type: AWS::EC2::KeyPair::KeyName
@@ -57,16 +61,16 @@ Parameters:
     MaxValue: 22
 
 Resources:
-  myVPC:
-    Type: AWS::EC2::VPC
+  myIAMRole:
+    Type: AWS::IAM::Role
     Properties:
-      CidrBlock: "10.0.0.0/16"
-      EnableDnsSupport: true
-      EnableDnsHostnames: true
-      Tags:
-        - Key: Name
-          Value: "MyVPC"
-
+      AssumeRolePolicyDocument: Json
+      Description: Admin role
+      Path: /
+      RoleName: admin
+      myVPC: 
+        !Ref myVPC
+  
   myRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -122,7 +126,7 @@ Resources:
         InstanceType: !Ref myInstanceType
         KeyName: !Ref myKeyPair
         SecurityGroups:
-          - !Ref mySecGroup
+          - !Ref myLTSecGroup
         TagSpecifications:
           - ResourceType: instance
             Tags:
@@ -160,7 +164,7 @@ Resources:
       Name: phonebook-project
       Scheme: internet-facing 
       SecurityGroups: 
-        - !Ref mySecGroup
+        - !Ref myALBSecGroup
       Subnets: 
         - !Ref SubnetUsEast1a
         - !Ref SubnetUsEast1b
@@ -207,7 +211,9 @@ Resources:
       Type: String
       Value: !Ref DBName
 
-  mySecGroup:
+  
+
+  myLTSecGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Allow HTTP, MySQL, and SSH 
@@ -220,14 +226,24 @@ Resources:
           FromPort: 3306
           ToPort: 3306
           CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
           Value: seymanur-phonebook-project
       VpcId: !Ref myVPC
+
+  myALBSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP, MySQL, and SSH 
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 0.0.0.0/0
 
   SubnetUsEast1a:
     Type: AWS::EC2::Subnet
