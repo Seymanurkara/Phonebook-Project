@@ -17,7 +17,7 @@ Parameters:
     Default: t2.micro
 
   myVPC:
-    Description: Choose your vpc
+    Description: Choose your VPC
     Type: AWS::EC2::VPC::Id
 
   myKeyPair:
@@ -30,19 +30,19 @@ Parameters:
     Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64'
 
   DBInstanceID:
-    Default: clarusway-phonebook
+    Default: clarusway_phonebook
     Description: My database instance
     Type: String
 
   DBName:
     Default: clarusway_phonebook
-    Description: Database name for the Phonebook Project
+    Description: "Database name for the Phonebook Project"
     Type: String
 
   GitHubToken:
     Type: String
     NoEcho: true
-    Description: GitHub Personal Access Token for the Phonebook Project
+    Description: "GitHub Personal Access Token for the Phonebook Project"
 
   DBInstanceClass:
     Default: db.t2.micro
@@ -61,66 +61,168 @@ Parameters:
     MaxValue: 22
 
 Resources:
-  myIAMRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: ec2.amazonaws.com
-            Action: sts:AssumeRole
-      Description: Admin role
-      Path: /
-      RoleName: admin
-  
-  myRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref myVPC
-
   GitHubTokenParameter:
     Type: AWS::SSM::Parameter
     Properties:
       Name: "/phonebook/github/token"
       Description: "GitHub Personal Access Token for the Phonebook Project"
-      Type: String
+      Type: SecureString
       Value: !Ref GitHubToken
 
-  autoScalingGroup:
-    Type: AWS::AutoScaling::AutoScalingGroup
+  myVPC:
+    Type: AWS::EC2::VPC
     Properties:
-      AutoScalingGroupName: seymanur-phone-book-project
-      AvailabilityZones: 
-        - us-east-1a
-        - us-east-1b
-        - us-east-1c
-        - us-east-1d
-        - us-east-1e
-        - us-east-1f
-      DesiredCapacity: "2"
-      HealthCheckGracePeriod: 90
-      HealthCheckType: ELB
-      LaunchTemplate:
-        LaunchTemplateId: !Ref myLT
-        Version: !GetAtt myLT.LatestVersionNumber
-      LoadBalancerNames: 
-        - !Ref myALB
-      MaxSize: "3"
-      MetricsCollection:
-        - Granularity: 1 Minute
-      MinSize: "1"
-      NewInstancesProtectedFromScaleIn: True
-      TargetGroupARNs: 
-        - !Ref myTargetGroup
-      VPCZoneIdentifier: 
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: myVPC
+
+  myRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref myVPC
+
+  SubnetUsEast1a:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: "10.0.1.0/24"
+      AvailabilityZone: "us-east-1a"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: "Subnet-us-east-1a"
+
+  SubnetUsEast1b:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: "10.0.2.0/24"
+      AvailabilityZone: "us-east-1b"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: "Subnet-us-east-1b"
+
+  SubnetUsEast1c:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: "10.0.3.0/24"
+      AvailabilityZone: "us-east-1c"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: "Subnet-us-east-1c"
+
+  SubnetUsEast1d:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: "10.0.4.0/24"
+      AvailabilityZone: "us-east-1d"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: "Subnet-us-east-1d"
+
+  SubnetUsEast1e:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: "10.0.5.0/24"
+      AvailabilityZone: "us-east-1e"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: "Subnet-us-east-1e"
+
+  SubnetUsEast1f:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: "10.0.6.0/24"
+      AvailabilityZone: "us-east-1f"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: "Subnet-us-east-1f"
+
+  myALBSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP and SSH from anywhere
+      VpcId: !Ref myVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+  myLTSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP from ALB and MySQL within itself
+      VpcId: !Ref myVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref myALBSecGroup
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref myLTSecGroup
+
+  myALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      IpAddressType: ipv4
+      Name: phonebook-project
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref myALBSecGroup
+      Subnets:
         - !Ref SubnetUsEast1a
         - !Ref SubnetUsEast1b
         - !Ref SubnetUsEast1c
         - !Ref SubnetUsEast1d
         - !Ref SubnetUsEast1e
         - !Ref SubnetUsEast1f
+
+  MyListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref myTargetGroup
+      LoadBalancerArn: !Ref myALB
+      Port: 80
+      Protocol: HTTP
+
+  myTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckEnabled: True
+      HealthCheckIntervalSeconds: 5
+      HealthCheckPath: /
+      HealthCheckPort: 80
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 6
+      HealthyThresholdCount: 5
+      IpAddressType: ipv4
+      Name: Phonebook-project-target-group
+      Port: 80
+      Protocol: HTTP
+      ProtocolVersion: HTTP1
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref myVPC
 
   myLT:
     Type: AWS::EC2::LaunchTemplate
@@ -131,11 +233,6 @@ Resources:
         KeyName: !Ref myKeyPair
         SecurityGroups:
           - !Ref myLTSecGroup
-        TagSpecifications:
-          - ResourceType: instance
-            Tags:
-              - Key: Web Server of StackName
-                Value: "seymanur-cfn-proje"
         UserData: !Base64 |
           #!/bin/bash
           dnf update -y
@@ -150,53 +247,39 @@ Resources:
           wget -P templates ${FOLDER}/templates/index.html
           wget ${FOLDER}/phonebook-app.py
           python3.11 phonebook-app.py
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: "Web Server of StackName"
+                Value: "seymanur_cfn_proje"
 
-  MyListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
+  autoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref myTargetGroup
-      LoadBalancerArn: !Ref myALB
-      Port: 80
-      Protocol: HTTP
-
-  myALB:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      IpAddressType: ipv4
-      Name: phonebook-project
-      Scheme: internet-facing 
-      SecurityGroups: 
-        - !Ref myALBSecGroup
-      Subnets: 
+      AutoScalingGroupName: seymanur-phone-book-project
+      LaunchTemplate:
+        LaunchTemplateId: !Ref myLT
+        Version: !GetAtt myLT.LatestVersionNumber
+      MinSize: "1"
+      MaxSize: "3"
+      DesiredCapacity: "2"
+      VPCZoneIdentifier:
         - !Ref SubnetUsEast1a
         - !Ref SubnetUsEast1b
         - !Ref SubnetUsEast1c
         - !Ref SubnetUsEast1d
         - !Ref SubnetUsEast1e
         - !Ref SubnetUsEast1f
-  
-  myTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      HealthCheckEnabled: True
-      HealthCheckIntervalSeconds: 5
-      HealthCheckPath: /
-      HealthCheckPort: 80
-      HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 5
-      HealthyThresholdCount: 5
-      IpAddressType: ipv4 
-      Name: Phonebook-project-target-group
-      Port: 80
-      Protocol: HTTP
-      ProtocolVersion: HTTP1
-      UnhealthyThresholdCount: 2
-      VpcId: !Ref myVPC
+      TargetGroupARNs:
+        - !Ref myTargetGroup
+      HealthCheckType: ELB
+      HealthCheckGracePeriod: 90
+      NewInstancesProtectedFromScaleIn: True
+      MetricsCollection:
+        - Granularity: "1Minute"
 
   MyDB:
-    Type: 'AWS::RDS::DBInstance'
+    Type: AWS::RDS::DBInstance
     Properties:
       DBInstanceIdentifier: !Ref DBInstanceID
       DBName: !Ref DBName
@@ -206,6 +289,10 @@ Resources:
       EngineVersion: 8.0.35
       MasterUsername: admin
       MasterUserPassword: clarusway_1234
+      VPCSecurityGroups:
+        - !Ref myLTSecGroup
+      PubliclyAccessible: false
+      MultiAZ: false
 
   mydbSSM:
     Type: AWS::SSM::Parameter
@@ -214,106 +301,6 @@ Resources:
       Description: "Database name for the Phonebook Project"
       Type: String
       Value: !Ref DBName
-
-  
-
-  myLTSecGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Allow HTTP, MySQL, and SSH 
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 3306
-          ToPort: 3306
-          CidrIp: 0.0.0.0/0
-      Tags:
-        - Key: Name
-          Value: seymanur-phonebook-project
-      VpcId: !Ref myVPC
-
-  myALBSecGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Allow HTTP, MySQL, and SSH 
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 3306
-          ToPort: 3306
-          CidrIp: 0.0.0.0/0
-
-  SubnetUsEast1a:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref myVPC
-      CidrBlock: "10.4.0.0/16"
-      AvailabilityZone: "us-east-1a"
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: "Subnet-us-east-1a"
-
-  SubnetUsEast1b:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref myVPC
-      CidrBlock: "10.5.0.0/16"
-      AvailabilityZone: "us-east-1b"
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: "Subnet-us-east-1b"
-
-  SubnetUsEast1c:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref myVPC
-      CidrBlock: "10.6.0.0/16"
-      AvailabilityZone: "us-east-1c"
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: "Subnet-us-east-1c"
-
-  SubnetUsEast1d:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref myVPC
-      CidrBlock: "10.9.0.0/16"
-      AvailabilityZone: "us-east-1d"
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: "Subnet-us-east-1d"
-
-  SubnetUsEast1e:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref myVPC
-      CidrBlock: "10.8.0.0/16"
-      AvailabilityZone: "us-east-1e"
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: "Subnet-us-east-1e"
-
-  SubnetUsEast1f:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref myVPC
-      CidrBlock: "10.7.0.0/16"
-      AvailabilityZone: "us-east-1f"
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: "Subnet-us-east-1f"
 
 Outputs:
   WebsiteURL:
