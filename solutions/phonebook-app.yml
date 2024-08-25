@@ -18,12 +18,90 @@ Parameters:
     Type: AWS::SSM::Parameter::Value<String>
     Default: /clarusway/phonebook/dbname
   
+  LatestAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64'
+
+  KeyName:
+    Description: Please enter your Key pair
+    Type: AWS::EC2::KeyPair::KeyName
+
+  Subnets:
+    Description: Choose you subnets
+    Type: List<AWS::EC2::Subnet::Id>
+
+
 Resources:
+  
+  ALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      IpAddressType: ipv4 
+      Scheme: internet-facing
+      SecurityGroups:
+        - !GetAtt eC2SecGrp.GroupId
+      Subnets: !Ref Subnets 
+      Type: application
+
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties: 
+      DefaultActions: # Required
+        - TargetGroupArn: !Ref TG
+          Type: forward
+      LoadBalancerArn: !Ref ALB # Required
+      Port: 80 # Required
+      Protocol: HTTP  # Required
+
+  LT:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        ImageId: !Ref LatestAmiId
+        InstanceType: t2.micro
+        IamInstanceProfile: 
+          Name: !Ref myInstanceProfile 
+        KeyName: !Ref KeyName
+        SecurityGroupIds:
+          - !GetAtt eC2SecGrp.GroupId
+        TagSpecifications: 
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: !Sub Web Server of ${AWS::StackName} Stack
+        UserData:
+          Fn::Base64:
+            !Sub 
+              - |
+                #! /bin/bash -x
+                dnf update -y
+                dnf install python3 -y
+                dnf install python-pip -y
+                pip3 install Flask==2.3.3
+                pip3 install Flask-MySql
+                pip3 install boto3
+                dnf install git -y
+                echo "${MyDBURI}" > /home/ec2-user/dbserver.endpoint
+                cd /home/ec2-user
+                TOKEN=$(aws --region=us-east-1 ssm get-parameter --name /clarusway/phonebook/token --with-decryption --query 'Parameter.Value' --output text)
+                git clone https://$TOKEN@github.com/Seymanurkara/Phonebook-Project
+                python3 /home/ec2-user/Phonebook-Project/solutions/phonebook-app.py
+              - MyDBURI: !GetAtt MyRDS.Endpoint.Address
+  TG:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties: 
+      HealthyThresholdCount: 2 
+      HealthCheckTimeoutSeconds: 10
+      Port: 80
+      Protocol: HTTP 
+      TargetType: instance 
+      UnhealthyThresholdCount: 3
+      VpcId: !Ref myVPC
 
   myInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
-      InstanceProfileName: osvaldo-phonebook-18-ip
+      InstanceProfileName: seymanur-phonebook-18-ip
       Roles: # Required
         - !Ref mySSMRole
 
@@ -104,3 +182,10 @@ Resources:
         ToPort: 22
         CidrIp: 0.0.0.0/0
       VpcId: !Ref myVPC
+
+Outputs:
+  WebsiteURL:
+    Value: !Sub 
+      - http://${ALBAddress}
+      - ALBAddress: !GetAtt ALB.DNSName
+    Description: Phonebook Application Load Balancer URL
