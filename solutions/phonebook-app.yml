@@ -39,7 +39,7 @@ Resources:
       IpAddressType: ipv4 
       Scheme: internet-facing
       SecurityGroups:
-        - !GetAtt eC2SecGrp.GroupId
+        - !GetAtt aLBSecGrp.GroupId
       Subnets: !Ref Subnets 
       Type: application
 
