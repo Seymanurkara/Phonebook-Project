@@ -1,0 +1,106 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  CloudFormation Template for Phonebook Application. This template creates Application Load Balancer 
+  with Auto Scaling Group of Amazon Linux 2023  EC2 Instances which host Python Flask Web Application.
+  EC2 instances are placed within WebServerSecurityGroup which allows http (80) connections only from ALBSecurityGroup,
+  and allows tcp(3306) connections only within itself. RDS DB instance is placed within WebServerSecurityGroup 
+  so that Database Server can communicate with Web Servers. Application Load Balancer is placed within ALBSecurityGroup 
+  which allows http (80) and SSH (22)connections from anywhere. WebServerASG Auto Scaling Group is using the LT 
+  Launch Template in order to spin up instances needed. LT Launch Template is configured to prepare Python Flask 
+  environment on EC2, and to deploy Phonebook Application on Flask Server after downloading the app code 
+  from Github repository.
+Parameters:
+  myVPC:
+    Description: choose your vpc
+    Type: AWS::EC2::VPC::Id
+
+  myDbname: 
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /clarusway/phonebook/dbname
+  
+Resources:
+
+  myInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: osvaldo-phonebook-18-ip
+      Roles: # Required
+        - !Ref mySSMRole
+
+  mySSMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Description: allow ssm
+      ManagedPolicyArns: 
+        - arn:aws:iam::aws:policy/AmazonSSMFullAccess
+      RoleName: seymanur-SSM-phonebook-18
+
+  rDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: 20
+      BackupRetentionPeriod: 0
+      DBInstanceClass: db.t3.micro
+      DBInstanceIdentifier: seymanur-phonebook-18
+      DBName: !Ref myDbname # '{{resolve:ssm:/clarusway/phonebook/dbname:1}}'
+      DBSecurityGroups: 
+        - !Ref rDSSecGrp
+      DeleteAutomatedBackups: true
+      Engine: mysql
+      EngineVersion: 8.0.35
+      MasterUserPassword: '{{resolve:ssm-secure:/clarusway/phonebook/password:1}}'
+      MasterUsername: '{{resolve:ssm:/clarusway/phonebook/username:1}}'
+      PubliclyAccessible: true
+    DeletionPolicy: Delete
+
+  rDSSecGrp:
+    Type: AWS::RDS::DBSecurityGroup
+    Properties:
+      DBSecurityGroupIngress: # Required
+        - EC2SecurityGroupId: !GetAtt eC2SecGrp.GroupId
+      GroupDescription: allow 3306 from ec2secgrp # Required
+      Tags: 
+        - Key: Name
+          Value: seymanur-phonebook-RDS-Sec-18
+
+  eC2SecGrp:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: allow ssh from anywhere and http from ALB # Required
+      GroupName: seymanur-phonebook-EC2-18
+      SecurityGroupIngress: 
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !GetAtt aLBSecGrp.GroupId  # !Ref aLBSecGrp
+      VpcId: !Ref myVPC
+
+  aLBSecGrp:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow ssh and http # Required
+      GroupName: seymanur-phonebook-ALB-18
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+      VpcId: !Ref myVPC

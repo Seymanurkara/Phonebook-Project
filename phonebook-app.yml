@@ -1,307 +1,44 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: |
-  CloudFormation Template for Phonebook Application. This template creates an Application Load Balancer 
-  with an Auto Scaling Group of Amazon Linux 2023 EC2 Instances which host a Python Flask Web Application.
-  EC2 instances are placed within WebServerSecurityGroup which allows HTTP (80) connections only from ALBSecurityGroup,
-  and allows TCP (3306) connections only within itself. RDS DB instance is placed within WebServerSecurityGroup 
-  so that the Database Server can communicate with Web Servers. Application Load Balancer is placed within ALBSecurityGroup 
-  which allows HTTP (80) and SSH (22) connections from anywhere. WebServerASG Auto Scaling Group is using the LT 
-  Launch Template in order to spin up instances as needed. LT Launch Template is configured to prepare a Python Flask 
-  environment on EC2, and to deploy the Phonebook Application on the Flask Server after downloading the app code 
-  from the Github repository.
-
+  CloudFormation Template for Phonebook Application. This template creates Application Load Balancer 
+  with Auto Scaling Group of Amazon Linux 2023  EC2 Instances which host Python Flask Web Application.
+  EC2 instances are placed within WebServerSecurityGroup which allows http (80) connections only from ALBSecurityGroup,
+  and allows tcp(3306) connections only within itself. RDS DB instance is placed within WebServerSecurityGroup 
+  so that Database Server can communicate with Web Servers. Application Load Balancer is placed within ALBSecurityGroup 
+  which allows http (80) and SSH (22)connections from anywhere. WebServerASG Auto Scaling Group is using the LT 
+  Launch Template in order to spin up instances needed. LT Launch Template is configured to prepare Python Flask 
+  environment on EC2, and to deploy Phonebook Application on Flask Server after downloading the app code 
+  from Github repository.
 Parameters:
-  myInstanceType:
-    Description: Choose your instance type
-    Type: String
-    Default: t2.micro
-
-  myKeyPair:
-    Description: Name of an existing EC2 KeyPair to enable SSH access to the instances
-    Type: AWS::EC2::KeyPair::KeyName
-    ConstraintDescription: Must be the name of an existing EC2 KeyPair.
-
-  latestAmiId:
-    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64'
-
-  DBInstanceID:
-    Default: clarusway_phonebook
-    Description: My database instance
-    Type: String
-
-  DBName:
-    Default: clarusway_phonebook
-    Description: "Database name for the Phonebook Project"
-    Type: String
-
-  GitHubToken:
-    Type: String
-    NoEcho: true
-    Description: "GitHub Personal Access Token for the Phonebook Project"
-
-  DBInstanceClass:
-    Default: db.t2.micro
-    AllowedValues:
-      - db.t2.micro
-      - db.t3.micro
-    Description: DB instance class
-    Type: String
-    ConstraintDescription: Must select a valid DB instance type.
-
-  DBAllocatedStorage:
-    Default: 20
-    Description: The size of the database (GiB)
-    Type: Number
-    MinValue: 20
-    MaxValue: 22
-
+ 
+  
 Resources:
-  GitHubTokenParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: "/phonebook/github/token"
-      Description: "GitHub Personal Access Token for the Phonebook Project"
-      Type: SecureString
-      Value: !Ref GitHubToken
-
-  myVPC:
-    Type: AWS::EC2::VPC
-    Properties:
-      CidrBlock: 10.0.0.0/16
-      EnableDnsSupport: true
-      EnableDnsHostnames: true
-      Tags:
-        - Key: Name
-          Value: myVPC
-
-  myRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref myVPC
-
-  SubnetUsEast1a:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref myVPC
-      CidrBlock: "10.0.1.0/24"
-      AvailabilityZone: "us-east-1a"
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: "Subnet-us-east-1a"
-
-  SubnetUsEast1b:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref myVPC
-      CidrBlock: "10.0.2.0/24"
-      AvailabilityZone: "us-east-1b"
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: "Subnet-us-east-1b"
-
-  SubnetUsEast1c:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref myVPC
-      CidrBlock: "10.0.3.0/24"
-      AvailabilityZone: "us-east-1c"
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: "Subnet-us-east-1c"
-
-  SubnetUsEast1d:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref myVPC
-      CidrBlock: "10.0.4.0/24"
-      AvailabilityZone: "us-east-1d"
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: "Subnet-us-east-1d"
-
-  SubnetUsEast1e:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref myVPC
-      CidrBlock: "10.0.5.0/24"
-      AvailabilityZone: "us-east-1e"
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: "Subnet-us-east-1e"
-
-  SubnetUsEast1f:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref myVPC
-      CidrBlock: "10.0.6.0/24"
-      AvailabilityZone: "us-east-1f"
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: "Subnet-us-east-1f"
-
-  myALBSecGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Allow HTTP and SSH from anywhere
-      VpcId: !Ref myVPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
-
-  myLTSecGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Allow HTTP from ALB and MySQL within itself
-      VpcId: !Ref myVPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          SourceSecurityGroupId: !Ref myALBSecGroup
-        - IpProtocol: tcp
-          FromPort: 3306
-          ToPort: 3306
-          SourceSecurityGroupId: !Ref myLTSecGroup
-
-  myALB:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      IpAddressType: ipv4
-      Name: phonebook-project
-      Scheme: internet-facing
-      SecurityGroups:
-        - !Ref myALBSecGroup
-      Subnets:
-        - !Ref SubnetUsEast1a
-        - !Ref SubnetUsEast1b
-        - !Ref SubnetUsEast1c
-        - !Ref SubnetUsEast1d
-        - !Ref SubnetUsEast1e
-        - !Ref SubnetUsEast1f
-
-  MyListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref myTargetGroup
-      LoadBalancerArn: !Ref myALB
-      Port: 80
-      Protocol: HTTP
-
-  myTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      HealthCheckEnabled: True
-      HealthCheckIntervalSeconds: 5
-      HealthCheckPath: /
-      HealthCheckPort: 80
-      HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 6
-      HealthyThresholdCount: 5
-      IpAddressType: ipv4
-      Name: Phonebook-project-target-group
-      Port: 80
-      Protocol: HTTP
-      ProtocolVersion: HTTP1
-      UnhealthyThresholdCount: 2
-      VpcId: !Ref myVPC
-
-  myLT:
-    Type: AWS::EC2::LaunchTemplate
-    Properties:
-      LaunchTemplateData:
-        ImageId: !Ref latestAmiId
-        InstanceType: !Ref myInstanceType
-        KeyName: !Ref myKeyPair
-        SecurityGroups:
-          - !Ref myLTSecGroup
-        UserData: !Base64 |
-          #!/bin/bash
-          dnf update -y
-          dnf install python3.11 -y
-          dnf install python3.11-pip -y
-          pip3.11 install flask
-          dnf install git -y
-          cd /home/ec2-user
-          FOLDER="https://raw.githubusercontent.com/Seymanurkara/Phonebook-Project/main"
-          wget -P templates ${FOLDER}/templates/add-update.html
-          wget -P templates ${FOLDER}/templates/delete.html
-          wget -P templates ${FOLDER}/templates/index.html
-          wget ${FOLDER}/phonebook-app.py
-          python3.11 phonebook-app.py
-        TagSpecifications:
-          - ResourceType: instance
-            Tags:
-              - Key: "Web Server of StackName"
-                Value: "seymanur_cfn_proje"
 
   autoScalingGroup:
-    Type: AWS::AutoScaling::AutoScalingGroup
-    Properties:
-      AutoScalingGroupName: seymanur-phone-book-project
-      LaunchTemplate:
-        LaunchTemplateId: !Ref myLT
-        Version: !GetAtt myLT.LatestVersionNumber
-      MinSize: "1"
-      MaxSize: "3"
-      DesiredCapacity: "2"
-      VPCZoneIdentifier:
-        - !Ref SubnetUsEast1a
-        - !Ref SubnetUsEast1b
-        - !Ref SubnetUsEast1c
-        - !Ref SubnetUsEast1d
-        - !Ref SubnetUsEast1e
-        - !Ref SubnetUsEast1f
-      TargetGroupARNs:
-        - !Ref myTargetGroup
-      HealthCheckType: ELB
-      HealthCheckGracePeriod: 90
-      NewInstancesProtectedFromScaleIn: True
-      MetricsCollection:
-        - Granularity: "1Minute"
 
-  MyDB:
-    Type: AWS::RDS::DBInstance
-    Properties:
-      DBInstanceIdentifier: !Ref DBInstanceID
-      DBName: !Ref DBName
-      DBInstanceClass: !Ref DBInstanceClass
-      AllocatedStorage: !Ref DBAllocatedStorage
-      Engine: MySQL
-      EngineVersion: 8.0.35
-      MasterUsername: admin
-      MasterUserPassword: clarusway_1234
-      VPCSecurityGroups:
-        - !Ref myLTSecGroup
-      PubliclyAccessible: false
-      MultiAZ: false
+  applicationLoadBalancerListener:
+    
 
-  mydbSSM:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: "/phonebook/dbname"
-      Description: "Database name for the Phonebook Project"
-      Type: String
-      Value: !Ref DBName
+  applicationLoadBalancer:
+    
 
+  launchTemplate:
+   
+
+
+  targetGroup:
+     
+
+  dBInstance:
+    
+
+  wBSecurityGroup:
+   
+
+  webServerSecurityGroup:
+    
+
+  applicationLoadBalancerSecurityGroup:
+    
 Outputs:
-  WebsiteURL:
-    Value: !Join
-      - ""
-      - - "http://"
-        - !GetAtt myALB.DNSName
-    Description: PhoneBook Application URL
+  
