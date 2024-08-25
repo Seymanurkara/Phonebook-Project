@@ -86,7 +86,8 @@ Resources:
                 TOKEN=$(aws --region=us-east-1 ssm get-parameter --name /clarusway/phonebook/token --with-decryption --query 'Parameter.Value' --output text)
                 git clone https://$TOKEN@github.com/Seymanurkara/Phonebook-Project
                 python3 /home/ec2-user/Phonebook-Project/solutions/phonebook-app.py
-              - MyDBURI: !GetAtt MyRDS.Endpoint.Address
+              - MyDBURI: !GetAtt rDSInstance.Endpoint.Address
+  
   TG:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties: 
